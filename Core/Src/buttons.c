@@ -1,3 +1,5 @@
+extern TIM_HandleTypeDef htim10;
+
 #include "buttons.h"
 
 typedef struct
@@ -23,9 +25,27 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	{
 		if (GPIO_Pin == btn_list[i].pin)
 		{
+			HAL_TIM_Base_Start_IT(&htim10);
 			btn_list[i].press_time = 0;
 			btn_list[i].is_pressed = 1;
 			break;
 		}
+	}
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim->Instance != TIM10)
+	{
+		return;
+	}
+	HAL_TIM_Base_Stop_IT(&htim10);
+	for (int i = 0; i < 4; i++)
+	{
+		if (btn_list[i].is_pressed == 1 && HAL_GPIO_ReadPin(btn_list[i].port, btn_list[i].pin) == GPIO_PIN_RESET)
+			{
+				btn_list[i].event = BTN_CLICK;
+			}
+	btn_list[i].is_pressed = 0;
 	}
 }

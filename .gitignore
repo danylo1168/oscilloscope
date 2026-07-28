@@ -1,0 +1,14 @@
+# Build CubeIDE
+Debug/
+Release/
+
+# Compiled files
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+
+# User seup
+.launches/

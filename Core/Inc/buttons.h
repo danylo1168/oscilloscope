@@ -18,8 +18,6 @@ typedef enum
 	BTN_LONG_PRESS
 } Events;
 
-Events ButtonGetEvent(Buttons btn);
-
-void ButtonsProcessTick();
+Events ButtonGetEvent(uint8_t btn_index);
 
 #endif /* INC_BUTTONS_H_ */

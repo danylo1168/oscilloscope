@@ -39,6 +39,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		return;
 	}
+
 	HAL_TIM_Base_Stop_IT(&htim10);
 	for (int i = 0; i < 4; i++)
 	{
@@ -46,6 +47,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			{
 				btn_list[i].event = BTN_CLICK;
 			}
-	btn_list[i].is_pressed = 0;
+		btn_list[i].is_pressed = 0;
 	}
+}
+
+Events ButtonGetEvent(uint8_t btn_index)
+{
+	Events temp = btn_list[btn_index].event;
+	btn_list[btn_index].event = BTN_IDLE;
+	return temp;
 }

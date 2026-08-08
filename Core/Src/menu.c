@@ -1,14 +1,14 @@
 #include "menu.h"
+#include "buttons.h"
+#include "oscilloscope.h"
+//#include "spectrum.h"
 
 static Mode current_mode = MODE_OSCILLOSCOPE;
 
-static void NextMode();
-static void ChangeFocus();
-static void RunStop();
-static void ScrollSweep();
-static void RunOscilloscope();
-static void RunSpectrum();
-static void RunSettings();
+static void NextMode()
+{
+	current_mode = (current_mode + 1) % (MODE_SETTINGS + 1);
+}
 
 void MenuUpdate()
 {
@@ -16,71 +16,41 @@ void MenuUpdate()
 	{
 		if (ButtonGetEvent(i) == BTN_CLICK)
 		{
-			switch(i)
+			switch (i)
 			{
 			case BTN_MODE:
 				NextMode();
 				break;
 			case BTN_FOCUS:
-				ChangeFocus();
+				OscilloscopeToggleMode();
 				break;
 			case BTN_RUN_STOP:
-				RunStop();
+				if (current_mode == MODE_OSCILLOSCOPE)
+				{
+					OscilloscopeToggleRunStop();
+				}
+				else if (current_mode == MODE_SPECTRUM)
+				{
+					//SpectrumToggleRunStop();
+				}
 				break;
 			case BTN_SCROLL:
-				ScrollSweep();
+				//Scroll();
 				break;
 			}
 		}
 	}
 
 	switch (current_mode)
-	{
-	case MODE_OSCILLOSCOPE:
-		RunOscilloscope();
-		break;
-
-	case MODE_SPECTRUM:
-		RunSpectrum();
-		break;
-
-	case MODE_SETTINGS:
-		RunSettings();
-		break;
-	}
-}
-
-static void NextMode()
-{
-	current_mode = (current_mode + 1) % (MODE_SETTINGS + 1);
-}
-
-static void ChangeFocus()
-{
-
-}
-
-static void RunStop()
-{
-
-}
-
-static void ScrollSweep()
-{
-
-}
-
-static void RunOscilloscope()
-{
-
-}
-
-static void RunSpectrum()
-{
-
-}
-
-static void RunSettings()
-{
-
+			{
+			case MODE_OSCILLOSCOPE:
+				OscilloscopeUpdate();
+				break;
+			case MODE_SPECTRUM:
+				//RunSpectrum();
+				break;
+			case MODE_SETTINGS:
+				//RunSettings();
+				break;
+			}
 }

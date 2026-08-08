@@ -1,6 +1,7 @@
-extern TIM_HandleTypeDef htim10;
-
 #include "buttons.h"
+#include "main.h"
+
+extern TIM_HandleTypeDef htim10;
 
 typedef struct
 {

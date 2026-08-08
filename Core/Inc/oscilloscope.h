@@ -1,3 +1,7 @@
+#ifndef OSCILLOSCOPE_H
+#define OSCILLOSCOPE_H
+
+#include "main.h"
 
 typedef enum
 {
@@ -7,7 +11,16 @@ typedef enum
 	OSC_DRAW_SCREEN
 } State;
 
+typedef enum
+{
+	TIME,
+	VOLTS
+} ScaleControls;
+
+void OscilloscopeInit(ADC_HandleTypeDef *hadc1);
 void OscilloscopeUpdate(void);
 void OscilloscopeToggleRunStop(void);
-void OsclilloscopeTrigger(void);
-void OscilloscopeSendData(void);
+void OscilloscopeToggleMode(void);
+void OscilloscopeUpdateEncoder();
+
+#endif

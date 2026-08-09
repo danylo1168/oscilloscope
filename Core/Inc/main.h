@@ -59,12 +59,12 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define TFT_CS_Pin GPIO_PIN_12
-#define TFT_CS_GPIO_Port GPIOB
-#define TFT_RST_Pin GPIO_PIN_13
-#define TFT_RST_GPIO_Port GPIOB
-#define TFT_DC_Pin GPIO_PIN_6
-#define TFT_DC_GPIO_Port GPIOC
+#define DC_Pin GPIO_PIN_12
+#define DC_GPIO_Port GPIOB
+#define RST_Pin GPIO_PIN_13
+#define RST_GPIO_Port GPIOB
+#define CS_Pin GPIO_PIN_14
+#define CS_GPIO_Port GPIOB
 #define ADC_CLK_Pin GPIO_PIN_9
 #define ADC_CLK_GPIO_Port GPIOA
 #define D__Pin GPIO_PIN_11

@@ -14,7 +14,8 @@ typedef enum
 typedef enum
 {
 	TIME,
-	VOLTS
+	VOLTS,
+	TRIGGER
 } ScaleControls;
 
 void OscilloscopeInit(ADC_HandleTypeDef *hadc1);

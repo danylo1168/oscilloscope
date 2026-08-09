@@ -12,6 +12,7 @@ static uint8_t timebase_index = 0;
 const uint8_t volts_arr_values[4] = {1, 2, 5, 10};
 static uint8_t volts_index = 0;
 static ScaleControls scale_controls_mode = TIME;
+static int32_t trigger_level = 2048;
 
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim4;
@@ -125,38 +126,97 @@ void OscilloscopeUpdateEncoder(void)
     }
 
     int16_t diff = (int16_t)(current_tim_value - last_encoder_val);
-
-    if (diff > 0)
-    {
-        if (scale_controls_mode == TIME && timebase_index < 5)
-        {
-            timebase_index++;
-            __HAL_TIM_SET_AUTORELOAD(&htim2, timebase_arr_values[timebase_index]);
-        }
-        else if (scale_controls_mode == VOLTS && volts_index < 3)
-        {
-        	volts_index++;
-        }
-    }
-    else if (diff < 0)
-    {
-        if (scale_controls_mode == TIME && timebase_index > 0)
-        {
-            timebase_index--;
-            __HAL_TIM_SET_AUTORELOAD(&htim2, timebase_arr_values[timebase_index]);
-        }
-        else if (scale_controls_mode == VOLTS && volts_index > 0)
-        {
-        	volts_index--;
-        }
-    }
-
     last_encoder_val = current_tim_value;
+
+    switch (scale_controls_mode)
+    {
+    case TIME:
+    	if (diff > 0 && timebase_index < 5)
+    	{
+    		timebase_index++;
+    		__HAL_TIM_SET_AUTORELOAD(&htim2, timebase_arr_values[timebase_index]);
+    	}
+    	else if (diff < 0 && timebase_index > 0)
+    	{
+    		timebase_index--;
+    		__HAL_TIM_SET_AUTORELOAD(&htim2, timebase_arr_values[timebase_index]);
+    	}
+    	break;
+    case VOLTS:
+    	if (diff > 0 && volts_index < 3)
+    	{
+    		volts_index++;
+    	}
+    	else if (diff < 0 && volts_index > 0)
+    	{
+    		volts_index--;
+    	}
+    	break;
+    case TRIGGER:
+    	if (diff > 0)
+    	{
+    		trigger_level += 50;
+    		if (trigger_level > 4095)
+    		{
+    			trigger_level = 4095;
+    		}
+    	}
+    	else if (diff < 0)
+    	{
+    		trigger_level -= 50;
+    		if (trigger_level < 0)
+    		{
+    			trigger_level = 0;
+    		}
+    	}
+    	break;
+    }
+//
+//    if (diff > 0)
+//    {
+//        if (scale_controls_mode == TIME && timebase_index < 5)
+//        {
+//            timebase_index++;
+//            __HAL_TIM_SET_AUTORELOAD(&htim2, timebase_arr_values[timebase_index]);
+//        }
+//        else if (scale_controls_mode == VOLTS && volts_index < 3)
+//        {
+//        	volts_index++;
+//        }
+//        else if (scale_controls_mode == TRIGGER)
+//        {
+//        	trigger_level += 50;
+//        	if (trigger_level > 4095)
+//        	{
+//        		trigger_level = 4095;
+//        	}
+//        }
+//    }
+//    else if (diff < 0)
+//    {
+//        if (scale_controls_mode == TIME && timebase_index > 0)
+//        {
+//            timebase_index--;
+//            __HAL_TIM_SET_AUTORELOAD(&htim2, timebase_arr_values[timebase_index]);
+//        }
+//        else if (scale_controls_mode == VOLTS && volts_index > 0)
+//        {
+//        	volts_index--;
+//        }
+//        else if (scale_controls_mode == TRIGGER)
+//        {
+//        	trigger_level -= 50;
+//        	if (trigger_level < 0)
+//        	{
+//        		trigger_level = 0;
+//        	}
+//        }
+//    }
 }
 
 void OscilloscopeToggleMode()
 {
-	scale_controls_mode = (scale_controls_mode + 1) % (VOLTS + 1);
+	scale_controls_mode = (scale_controls_mode + 1) % (TRIGGER + 1);
 }
 
 static void OscilloscopeTrigger()
@@ -167,7 +227,7 @@ static void OscilloscopeTrigger()
 
 	for (int i = start_index; i < end_index; i++)
 	{
-		if (adc_buffer[i-1] < 2048 && adc_buffer[i] >= 2048)
+		if (adc_buffer[i-1] < trigger_level && adc_buffer[i] >= trigger_level)
 		{
 			trigger_index = i;
 			current_state = OSC_DRAW_SCREEN;

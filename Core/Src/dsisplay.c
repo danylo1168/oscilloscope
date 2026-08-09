@@ -21,7 +21,7 @@ void ScreenFill(uint16_t color)
 
 	uint8_t data[2] = {color >> 8, color & 0xFF};
 
-	HAL_GPIO_WritePin(TFT_DC_GPIO_Port, TFT_DC_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(DC_GPIO_Port, DC_Pin, GPIO_PIN_SET);
 
 	for(uint32_t i = 0; i < (GUI_WIDTH * GUI_HEIGHT); i++)
 	{
@@ -47,7 +47,7 @@ void ScreenDrawTestPattern(void)
 
 		uint8_t data[2] = {colors[c] >> 8, colors[c] & 0xFF};
 
-		HAL_GPIO_WritePin(TFT_DC_GPIO_Port, TFT_DC_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(DC_GPIO_Port, DC_Pin, GPIO_PIN_SET);
 
 		for(uint32_t i = 0; i < (width * GUI_HEIGHT); i++)
 		{

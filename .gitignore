@@ -9,10 +9,6 @@ Release/
 *.hex
 *.map
 *.list
-display.c
-display.h
-ili9341.h
-ili9341.c
 
 # User seup
 .launches/

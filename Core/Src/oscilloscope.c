@@ -1,5 +1,6 @@
 #include "oscilloscope.h"
 #include "display.h"
+#include "menu.h"
 
 extern ADC_HandleTypeDef hadc1;
 
@@ -15,6 +16,9 @@ const uint8_t volts_arr_values[4] = {1, 2, 5, 10};
 static uint8_t volts_index = 0;
 static ScaleControls scale_controls_mode = TIME;
 static int32_t trigger_level = 2048;
+int32_t zero_offset = 2048;
+
+extern uint8_t spectrum_data_ready;
 
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim4;
@@ -24,6 +28,7 @@ void OscilloscopeToggleRunStop(void);
 void OscilloscopeToggleMode(void);
 static void OscilloscopeTrigger(void);
 static void OscilloscopeSendData(void);
+void OscilloscopeCalibrateZero(void);
 void HAL_ADC_ConvHalfCpltCallback (ADC_HandleTypeDef * hadc1);
 void HAL_ADC_ConvCpltCallback (ADC_HandleTypeDef * hadc1);
 void OscilloscopeInit(ADC_HandleTypeDef *hadc1);
@@ -53,6 +58,12 @@ void HAL_ADC_ConvHalfCpltCallback (ADC_HandleTypeDef *hadc1)
 	{
 		return;
 	}
+
+	if (GetCurrentMode() == MODE_SPECTRUM)
+	{
+		return;
+	}
+
 	buffer_flag = 0;
 	current_state = OSC_FIND_TRIGGER;
 }
@@ -63,6 +74,13 @@ void HAL_ADC_ConvCpltCallback (ADC_HandleTypeDef *hadc1)
 	{
 		return;
 	}
+
+	if (GetCurrentMode() == MODE_SPECTRUM)
+	{
+		spectrum_data_ready = 1;
+		return;
+	}
+
 	buffer_flag = 1;
 	current_state = OSC_FIND_TRIGGER;
 }
@@ -89,7 +107,7 @@ static void OscilloscopeSendData()
 	{
 		raw_value = adc_buffer[trigger_index + i];
 
-		calculated_value = raw_value - 2048;
+		calculated_value = raw_value - zero_offset;
 		calculated_value *= volts_arr_values[volts_index];
 		calculated_value += 2048;
 
@@ -215,6 +233,16 @@ void OscilloscopeUpdateEncoder(void)
 //        	}
 //        }
 //    }
+}
+
+void OscilloscopeCalibrateZero()
+{
+	uint32_t temp_value = 0;
+	for (uint16_t i = 0; i < 4096; i++)
+	{
+		temp_value += adc_buffer[i];
+	}
+	zero_offset = temp_value >> 12; //zero_offset /= 4096
 }
 
 void OscilloscopeToggleMode()

@@ -5,7 +5,11 @@
 
 static Mode current_mode = MODE_OSCILLOSCOPE;
 
-static void NextMode()
+Mode GetCurrentMode(void);
+void NextMode(void);
+void MenuUpdate(void);
+
+void NextMode()
 {
 	current_mode = (current_mode + 1) % (MODE_SETTINGS + 1);
 
@@ -62,4 +66,9 @@ void MenuUpdate()
 				//RunSettings();
 				break;
 			}
+}
+
+Mode GetCurrentMode(void)
+{
+	return current_mode;
 }

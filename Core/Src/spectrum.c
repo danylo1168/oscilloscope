@@ -13,8 +13,10 @@ static float32_t fftBuffOut[FFT_BUFFER_SIZE];
 
 static uint8_t fftFlag = 0;
 static float32_t fftMagnitudes[FFT_BUFFER_SIZE / 2];
+uint8_t spectrum_data_ready;
 
 extern uint16_t adc_buffer[4096];
+extern uint16_t zero_offset;
 
 void RunSpectrum(void);
 void SpectrumInit(void);
@@ -27,15 +29,17 @@ void SpectrumInit(void)
 
 void RunSpectrum(void)
 {
-	if (fftFlag == 0)
+	if (fftFlag == 0 || spectrum_data_ready == 0)
 	{
 		return;
 	}
 
 	for (uint16_t i = 0; i < FFT_BUFFER_SIZE; i++)
 	{
-		fftBuffIn[i] = (float32_t)adc_buffer[i];
+		fftBuffIn[i] = (float32_t)adc_buffer[2048 + i] - (float32_t)zero_offset;
 	}
+
+	spectrum_data_ready = 0;
 
 	arm_rfft_fast_f32(&fftHandler, fftBuffIn, fftBuffOut, 0);
 

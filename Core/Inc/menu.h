@@ -8,6 +8,8 @@ typedef enum
 	MODE_SETTINGS
 } Mode;
 
+Mode GetCurrentMode(void);
+void NextMode(void);
 void MenuUpdate(void);
 
 #endif /* MENU_H */

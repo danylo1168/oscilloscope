@@ -1,8 +1,10 @@
 #include "oscilloscope.h"
 #include "display.h"
 
+extern ADC_HandleTypeDef hadc1;
+
 static State current_state = OSC_WAIT_DATA;
-static uint16_t adc_buffer[4096];
+uint16_t adc_buffer[4096];
 static uint16_t trigger_index = 0;
 static uint8_t buffer_flag = 0;
 static uint16_t old_y[320] = {0};
@@ -25,7 +27,8 @@ static void OscilloscopeSendData(void);
 void HAL_ADC_ConvHalfCpltCallback (ADC_HandleTypeDef * hadc1);
 void HAL_ADC_ConvCpltCallback (ADC_HandleTypeDef * hadc1);
 void OscilloscopeInit(ADC_HandleTypeDef *hadc1);
-void OscilloscopeUpdateEncoder();
+void OscilloscopeUpdateEncoder(void);
+void AdcSetChannel(uint32_t channel);
 
 void OscilloscopeUpdate()
 {
@@ -246,4 +249,21 @@ static void OscilloscopeTrigger()
 void OscilloscopeInit(ADC_HandleTypeDef *hadc1)
 {
     HAL_ADC_Start_DMA(hadc1, (uint32_t*)adc_buffer, 4096);
+}
+
+void AdcSetChannel(uint32_t channel)
+{
+	ADC_ChannelConfTypeDef sConfig = {0};
+
+	HAL_ADC_Stop_DMA(&hadc1);
+
+	sConfig.Channel = channel;
+	sConfig.Rank = 1;
+	sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 4096);
 }

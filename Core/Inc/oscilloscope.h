@@ -22,6 +22,7 @@ void OscilloscopeInit(ADC_HandleTypeDef *hadc1);
 void OscilloscopeUpdate(void);
 void OscilloscopeToggleRunStop(void);
 void OscilloscopeToggleMode(void);
-void OscilloscopeUpdateEncoder();
+void OscilloscopeUpdateEncoder(void);
+void AdcSetChannel(uint32_t channel);
 
 #endif

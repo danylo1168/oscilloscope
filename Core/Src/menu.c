@@ -1,13 +1,22 @@
 #include "menu.h"
 #include "buttons.h"
 #include "oscilloscope.h"
-//#include "spectrum.h"
+#include "spectrum.h"
 
 static Mode current_mode = MODE_OSCILLOSCOPE;
 
 static void NextMode()
 {
 	current_mode = (current_mode + 1) % (MODE_SETTINGS + 1);
+
+	if (current_mode == MODE_OSCILLOSCOPE)
+	{
+		AdcSetChannel(ADC_CHANNEL_6);
+	}
+	else if (current_mode == MODE_SPECTRUM)
+	{
+		AdcSetChannel(ADC_CHANNEL_7);
+	}
 }
 
 void MenuUpdate()
@@ -47,7 +56,7 @@ void MenuUpdate()
 				OscilloscopeUpdate();
 				break;
 			case MODE_SPECTRUM:
-				//RunSpectrum();
+				RunSpectrum();
 				break;
 			case MODE_SETTINGS:
 				//RunSettings();

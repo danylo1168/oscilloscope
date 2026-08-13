@@ -24,6 +24,8 @@ void OscilloscopeToggleRunStop(void);
 void OscilloscopeToggleMode(void);
 void OscilloscopeUpdateEncoder(void);
 void OscilloscopeCalibrateZero(void);
+void OscilloscopeDrawGrid(void);
+void OscilloscopeDrawHUD(void);
 void AdcSetChannel(uint32_t channel);
 
 #endif

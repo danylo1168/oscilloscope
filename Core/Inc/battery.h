@@ -3,6 +3,8 @@
 
 #include "main.h"
 
+extern uint8_t is_battery_low;
+
 void CheckBatteryPeriodic(void);
 
 #endif

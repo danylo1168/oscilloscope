@@ -16,7 +16,7 @@ static float32_t fftMagnitudes[FFT_BUFFER_SIZE / 2];
 uint8_t spectrum_data_ready;
 
 extern uint16_t adc_buffer[4096];
-extern uint16_t zero_offset;
+extern uint32_t zero_offset;
 
 void RunSpectrum(void);
 void SpectrumInit(void);

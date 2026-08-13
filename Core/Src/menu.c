@@ -2,8 +2,13 @@
 #include "buttons.h"
 #include "oscilloscope.h"
 #include "spectrum.h"
+#include <stdio.h>
 
 static Mode current_mode = MODE_OSCILLOSCOPE;
+
+char last_mode[20] = "BTN: IDLE";
+
+Events current_event;
 
 Mode GetCurrentMode(void);
 void NextMode(void);
@@ -27,17 +32,23 @@ void MenuUpdate()
 {
 	for (int i = 0; i < 4; i++)
 	{
-		if (ButtonGetEvent(i) == BTN_CLICK)
+		current_event = ButtonGetEvent(i);
+		if (current_event == BTN_CLICK)
 		{
+			sprintf(last_mode, "BUTTON INDEX: %d", (int)i);
 			switch (i)
 			{
-			case BTN_MODE:
-				NextMode();
-				break;
-			case BTN_FOCUS:
+			case 0:
+
 				OscilloscopeToggleMode();
 				break;
-			case BTN_RUN_STOP:
+			case 1:
+				NextMode();
+				break;
+			case 2:
+
+				break;
+			case 3:
 				if (current_mode == MODE_OSCILLOSCOPE)
 				{
 					OscilloscopeToggleRunStop();
@@ -46,9 +57,6 @@ void MenuUpdate()
 				{
 					//SpectrumToggleRunStop();
 				}
-				break;
-			case BTN_SCROLL:
-				//Scroll();
 				break;
 			}
 		}
@@ -72,3 +80,4 @@ Mode GetCurrentMode(void)
 {
 	return current_mode;
 }
+

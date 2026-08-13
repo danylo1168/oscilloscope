@@ -1,371 +1,308 @@
-/*
- * ili9341.c
- *
- *  Created on: 2019/12/26
- *      Author: Kotetsu Yamamoto
- *      Copyright [Kotetsu Yamamoto]
-
-I refer https://github.com/dtnghia2206/TFTLCD/blob/master/TFTLCD/ILI9341/ILI9341_Driver.c
-
-from Original source:
-
-MIT License
-
-Copyright (c) 2019 NghiaDT
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
- */
-
+/* vim: set ai et ts=4 sw=4: */
+#include "stm32f4xx_hal.h"
 #include "ili9341.h"
-#include "main.h" // Hardware setting
 
-// This function is for compatible HiLetgo ILI9341
-
-typedef enum {
-	ROTATE_0,
-	ROTATE_90,
-	ROTATE_180,
-	ROTATE_270
-} LCD_Horizontal_t;
-
-extern void Error_Handler(void);
-extern SPI_HandleTypeDef hspi2;
-static __IO uint8_t spiDmaTransferComplete;
-
-void ILI9341_Reset(void);
-void ILI9341_SoftReset(void);
-
-void LCD_WR_REG(uint8_t data);
-static void LCD_WR_DATA(uint8_t data);
-static void LCD_direction(LCD_Horizontal_t direction);
-static void RESET_L(void);
-static void RESET_H(void);
-static void CS_L(void);
-static void DC_L(void);
-static void DC_H(void);
-static void LED_H(void);
-
-// Initialization
-void ILI9341_Init(void)
-{
-	ILI9341_Reset();
-	ILI9341_SoftReset();
-
-	/* Power Control A */
-	LCD_WR_REG(0xCB);
-	LCD_WR_DATA(0x39);
-	LCD_WR_DATA(0x2C);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x34);
-	LCD_WR_DATA(0x02);
-	/* Power Control B */
-	LCD_WR_REG(0xCF);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0xC1);
-	LCD_WR_DATA(0x30);
-	/* Driver timing control A */
-	LCD_WR_REG(0xE8);
-	LCD_WR_DATA(0x85);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x78);
-	/* Driver timing control B */
-	LCD_WR_REG(0xEA);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x00);
-	/* Power on Sequence control */
-	LCD_WR_REG(0xED);
-	LCD_WR_DATA(0x64);
-	LCD_WR_DATA(0x03);
-	LCD_WR_DATA(0x12);
-	LCD_WR_DATA(0x81);
-	/* Pump ratio control */
-	LCD_WR_REG(0xF7);
-	LCD_WR_DATA(0x20);
-	/* Power Control 1 */
-	LCD_WR_REG(0xC0);
-	LCD_WR_DATA(0x10);
-	/* Power Control 2 */
-	LCD_WR_REG(0xC1);
-	LCD_WR_DATA(0x10);
-	/* VCOM Control 1 */
-	LCD_WR_REG(0xC5);
-	LCD_WR_DATA(0x3E);
-	LCD_WR_DATA(0x28);
-	/* VCOM Control 2 */
-	LCD_WR_REG(0xC7);
-	LCD_WR_DATA(0x86);
-	/* VCOM Control 2 */
-	LCD_WR_REG(0x36);
-	LCD_WR_DATA(0x48);
-	/* Pixel Format Set */
-	LCD_WR_REG(0x3A);
-	LCD_WR_DATA(0x55);    //16bit
-	LCD_WR_REG(0xB1);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x18);
-#if 0
-	// Little Endian for TouchGFX
-	LCD_WR_REG(0xF6);
-	LCD_WR_DATA(0x01);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x20); // Little Endian
-#endif
-	/* Display Function Control */
-	LCD_WR_REG(0xB6);
-	LCD_WR_DATA(0x08);
-	LCD_WR_DATA(0x82);
-	LCD_WR_DATA(0x27);
-	/* 3GAMMA FUNCTION DISABLE */
-	LCD_WR_REG(0xF2);
-	LCD_WR_DATA(0x00);
-	/* GAMMA CURVE SELECTED */
-	LCD_WR_REG(0x26); //Gamma set
-	LCD_WR_DATA(0x01); 	//Gamma Curve (G2.2)
-	//Positive Gamma  Correction
-	LCD_WR_REG(0xE0);
-	LCD_WR_DATA(0x0F);
-	LCD_WR_DATA(0x31);
-	LCD_WR_DATA(0x2B);
-	LCD_WR_DATA(0x0C);
-	LCD_WR_DATA(0x0E);
-	LCD_WR_DATA(0x08);
-	LCD_WR_DATA(0x4E);
-	LCD_WR_DATA(0xF1);
-	LCD_WR_DATA(0x37);
-	LCD_WR_DATA(0x07);
-	LCD_WR_DATA(0x10);
-	LCD_WR_DATA(0x03);
-	LCD_WR_DATA(0x0E);
-	LCD_WR_DATA(0x09);
-	LCD_WR_DATA(0x00);
-	//Negative Gamma  Correction
-	LCD_WR_REG(0xE1);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x0E);
-	LCD_WR_DATA(0x14);
-	LCD_WR_DATA(0x03);
-	LCD_WR_DATA(0x11);
-	LCD_WR_DATA(0x07);
-	LCD_WR_DATA(0x31);
-	LCD_WR_DATA(0xC1);
-	LCD_WR_DATA(0x48);
-	LCD_WR_DATA(0x08);
-	LCD_WR_DATA(0x0F);
-	LCD_WR_DATA(0x0C);
-	LCD_WR_DATA(0x31);
-	LCD_WR_DATA(0x36);
-	LCD_WR_DATA(0x0F);
-	//EXIT SLEEP
-	LCD_WR_REG(0x11);
-
-	HAL_Delay(120);
-
-	//TURN ON DISPLAY
-	LCD_WR_REG(0x29);
-	LCD_WR_DATA(0x2C);
-
-	LCD_direction(ROTATE_270);
-
+static void ILI9341_Select() {
+    HAL_GPIO_WritePin(ILI9341_CS_GPIO_Port, ILI9341_CS_Pin, GPIO_PIN_RESET);
 }
 
-void ILI9341_SetWindow(uint16_t start_x, uint16_t start_y, uint16_t end_x, uint16_t end_y)
-{
-	// Set Window
-	LCD_WR_REG(0x2a);
-	LCD_WR_DATA(start_x >> 8);
-	LCD_WR_DATA(0xFF & start_x);
-	LCD_WR_DATA(end_x >> 8);
-	LCD_WR_DATA(0xFF & end_x);
-
-	LCD_WR_REG(0x2b);
-	LCD_WR_DATA(start_y >> 8);
-	LCD_WR_DATA(0xFF & start_y);
-	LCD_WR_DATA(end_y >> 8);
-	LCD_WR_DATA(0xFF & end_y);
-
+void ILI9341_Unselect() {
+    HAL_GPIO_WritePin(ILI9341_CS_GPIO_Port, ILI9341_CS_Pin, GPIO_PIN_SET);
 }
 
-void ILI9341_WritePixel(uint16_t x, uint16_t y, uint16_t color)
-{
-	uint8_t data[2];
-	data[0] = color >> 8;
-	data[1] = color;
-	ILI9341_SetWindow(x, y, x, y);
-	// Enable to access GRAM
-	LCD_WR_REG(0x2c);
-	DC_H();
-	if (HAL_SPI_Transmit(&hspi2, data, 2, 1000) != HAL_OK) {
-		Error_Handler();
-	}
+static void ILI9341_Reset() {
+    HAL_GPIO_WritePin(ILI9341_RES_GPIO_Port, ILI9341_RES_Pin, GPIO_PIN_RESET);
+    HAL_Delay(5);
+    HAL_GPIO_WritePin(ILI9341_RES_GPIO_Port, ILI9341_RES_Pin, GPIO_PIN_SET);
 }
 
-static void ConvHL(uint8_t *s, int32_t l)
-{
-	uint8_t v;
-	while (l > 0) {
-		v = *(s+1);
-		*(s+1) = *s;
-		*s = v;
-		s += 2;
-		l -= 2;
-	}
+static void ILI9341_WriteCommand(uint8_t cmd) {
+    HAL_GPIO_WritePin(ILI9341_DC_GPIO_Port, ILI9341_DC_Pin, GPIO_PIN_RESET);
+    HAL_SPI_Transmit(&ILI9341_SPI_PORT, &cmd, sizeof(cmd), HAL_MAX_DELAY);
 }
 
-// Call this function after ILI9341_SetWindow
-// This function is non blocked
-// The variable for Callback is open. User should set by himself
-void ILI9341_DrawBitmap(uint16_t w, uint16_t h, uint8_t *s)
-{
-	// Enable to access GRAM
-	LCD_WR_REG(0x2c);
+static void ILI9341_WriteData(uint8_t* buff, size_t buff_size) {
+    HAL_GPIO_WritePin(ILI9341_DC_GPIO_Port, ILI9341_DC_Pin, GPIO_PIN_SET);
 
-	DC_H();
-#if 0
-	__HAL_SPI_DISABLE(&hspi2);
-	hspi1.Instance->CR2 |= SPI_DATASIZE_16BIT; // Set 16 bit mode
-	__HAL_SPI_ENABLE(&hspi1);
-#endif
-	ConvHL(s, (int32_t)w*h*2);
-	HAL_SPI_Transmit_DMA(&hspi2, (uint8_t*)s, w * h *2);
-#if 0
-	__HAL_SPI_DISABLE(&hspi2);
-	hspi1.Instance->CR2 &= ~(SPI_DATASIZE_16BIT); // Set 8 bit mode
-	__HAL_SPI_ENABLE(&hspi1);
-#endif
+    // split data in small chunks because HAL can't send more then 64K at once
+    while(buff_size > 0) {
+        uint16_t chunk_size = buff_size > 32768 ? 32768 : buff_size;
+        HAL_SPI_Transmit(&ILI9341_SPI_PORT, buff, chunk_size, HAL_MAX_DELAY);
+        buff += chunk_size;
+        buff_size -= chunk_size;
+    }
 }
 
-// User should call it at callback
-void ILI9341_EndOfDrawBitmap(void)
-{
-#if 0
-	__HAL_SPI_DISABLE(&hspi2);
-	hspi1.Instance->CR2 &= ~(SPI_DATASIZE_16BIT); // Set 8 bit mode
-	__HAL_SPI_ENABLE(&hspi1);
-#endif
+static void ILI9341_SetAddressWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
+    // column address set
+    ILI9341_WriteCommand(0x2A); // CASET
+    {
+        uint8_t data[] = { (x0 >> 8) & 0xFF, x0 & 0xFF, (x1 >> 8) & 0xFF, x1 & 0xFF };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // row address set
+    ILI9341_WriteCommand(0x2B); // RASET
+    {
+        uint8_t data[] = { (y0 >> 8) & 0xFF, y0 & 0xFF, (y1 >> 8) & 0xFF, y1 & 0xFF };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // write to RAM
+    ILI9341_WriteCommand(0x2C); // RAMWR
 }
 
-void ILI9341_Reset(void)
-{
-	RESET_L();
-	HAL_Delay(100);
-	RESET_H();
-	HAL_Delay(100);
-	CS_L();
-	LED_H();
+void ILI9341_Init() {
+    ILI9341_Select();
+    ILI9341_Reset();
+
+    // command list is based on https://github.com/martnak/STM32-ILI9341
+
+    // SOFTWARE RESET
+    ILI9341_WriteCommand(0x01);
+    HAL_Delay(1000);
+        
+    // POWER CONTROL A
+    ILI9341_WriteCommand(0xCB);
+    {
+        uint8_t data[] = { 0x39, 0x2C, 0x00, 0x34, 0x02 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // POWER CONTROL B
+    ILI9341_WriteCommand(0xCF);
+    {
+        uint8_t data[] = { 0x00, 0xC1, 0x30 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // DRIVER TIMING CONTROL A
+    ILI9341_WriteCommand(0xE8);
+    {
+        uint8_t data[] = { 0x85, 0x00, 0x78 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // DRIVER TIMING CONTROL B
+    ILI9341_WriteCommand(0xEA);
+    {
+        uint8_t data[] = { 0x00, 0x00 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // POWER ON SEQUENCE CONTROL
+    ILI9341_WriteCommand(0xED);
+    {
+        uint8_t data[] = { 0x64, 0x03, 0x12, 0x81 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // PUMP RATIO CONTROL
+    ILI9341_WriteCommand(0xF7);
+    {
+        uint8_t data[] = { 0x20 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // POWER CONTROL,VRH[5:0]
+    ILI9341_WriteCommand(0xC0);
+    {
+        uint8_t data[] = { 0x23 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // POWER CONTROL,SAP[2:0];BT[3:0]
+    ILI9341_WriteCommand(0xC1);
+    {
+        uint8_t data[] = { 0x10 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // VCM CONTROL
+    ILI9341_WriteCommand(0xC5);
+    {
+        uint8_t data[] = { 0x3E, 0x28 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // VCM CONTROL 2
+    ILI9341_WriteCommand(0xC7);
+    {
+        uint8_t data[] = { 0x86 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // MEMORY ACCESS CONTROL
+    ILI9341_WriteCommand(0x36);
+    {
+        uint8_t data[] = { 0x48 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // PIXEL FORMAT
+    ILI9341_WriteCommand(0x3A);
+    {
+        uint8_t data[] = { 0x55 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // FRAME RATIO CONTROL, STANDARD RGB COLOR
+    ILI9341_WriteCommand(0xB1);
+    {
+        uint8_t data[] = { 0x00, 0x18 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // DISPLAY FUNCTION CONTROL
+    ILI9341_WriteCommand(0xB6);
+    {
+        uint8_t data[] = { 0x08, 0x82, 0x27 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // 3GAMMA FUNCTION DISABLE
+    ILI9341_WriteCommand(0xF2);
+    {
+        uint8_t data[] = { 0x00 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // GAMMA CURVE SELECTED
+    ILI9341_WriteCommand(0x26);
+    {
+        uint8_t data[] = { 0x01 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // POSITIVE GAMMA CORRECTION
+    ILI9341_WriteCommand(0xE0);
+    {
+        uint8_t data[] = { 0x0F, 0x31, 0x2B, 0x0C, 0x0E, 0x08, 0x4E, 0xF1,
+                           0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00 };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // NEGATIVE GAMMA CORRECTION
+    ILI9341_WriteCommand(0xE1);
+    {
+        uint8_t data[] = { 0x00, 0x0E, 0x14, 0x03, 0x11, 0x07, 0x31, 0xC1,
+                           0x48, 0x08, 0x0F, 0x0C, 0x31, 0x36, 0x0F };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    // EXIT SLEEP
+    ILI9341_WriteCommand(0x11);
+    HAL_Delay(120);
+
+    // TURN ON DISPLAY
+    ILI9341_WriteCommand(0x29);
+
+    // MADCTL
+    ILI9341_WriteCommand(0x36);
+    {
+        uint8_t data[] = { ILI9341_ROTATION };
+        ILI9341_WriteData(data, sizeof(data));
+    }
+
+    ILI9341_Unselect();
 }
 
-void ILI9341_SoftReset(void)
-{
-	uint8_t cmd;
-	cmd = 0x01; //Software reset
-	DC_L();
-	if (HAL_SPI_Transmit(&hspi2, &cmd, 1, 1000) != HAL_OK) {
-		Error_Handler();
-	}
+void ILI9341_DrawPixel(uint16_t x, uint16_t y, uint16_t color) {
+    if((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT))
+        return;
+
+    ILI9341_Select();
+
+    ILI9341_SetAddressWindow(x, y, x+1, y+1);
+    uint8_t data[] = { color >> 8, color & 0xFF };
+    ILI9341_WriteData(data, sizeof(data));
+
+    ILI9341_Unselect();
 }
 
+static void ILI9341_WriteChar(uint16_t x, uint16_t y, char ch, FontDef font, uint16_t color, uint16_t bgcolor) {
+    uint32_t i, b, j;
 
-void LCD_WR_REG(uint8_t data)
-{
-	DC_L();
-	if (HAL_SPI_Transmit(&hspi2, &data, 1, 1000) != HAL_OK) {
-		Error_Handler();
-	}
+    ILI9341_SetAddressWindow(x, y, x+font.width-1, y+font.height-1);
+
+    for(i = 0; i < font.height; i++) {
+        b = font.data[(ch - 32) * font.height + i];
+        for(j = 0; j < font.width; j++) {
+            if((b << j) & 0x8000)  {
+                uint8_t data[] = { color >> 8, color & 0xFF };
+                ILI9341_WriteData(data, sizeof(data));
+            } else {
+                uint8_t data[] = { bgcolor >> 8, bgcolor & 0xFF };
+                ILI9341_WriteData(data, sizeof(data));
+            }
+        }
+    }
 }
 
-static void LCD_WR_DATA(uint8_t data)
-{
-	DC_H();
-	if (HAL_SPI_Transmit(&hspi2, &data, 1, 1000) != HAL_OK) {
-		Error_Handler();
-	}
+void ILI9341_WriteString(uint16_t x, uint16_t y, const char* str, FontDef font, uint16_t color, uint16_t bgcolor) {
+    ILI9341_Select();
+
+    while(*str) {
+        if(x + font.width >= ILI9341_WIDTH) {
+            x = 0;
+            y += font.height;
+            if(y + font.height >= ILI9341_HEIGHT) {
+                break;
+            }
+
+            if(*str == ' ') {
+                // skip spaces in the beginning of the new line
+                str++;
+                continue;
+            }
+        }
+
+        ILI9341_WriteChar(x, y, *str, font, color, bgcolor);
+        x += font.width;
+        str++;
+    }
+
+    ILI9341_Unselect();
 }
 
-void LCD_IO_WriteMultipleData(uint8_t *pData, uint32_t Size)
-{
-	/* Swap endianes */
-	ConvHL(pData, (int32_t)Size*2);
+void ILI9341_FillRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
+    // clipping
+    if((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT)) return;
+    if((x + w - 1) >= ILI9341_WIDTH) w = ILI9341_WIDTH - x;
+    if((y + h - 1) >= ILI9341_HEIGHT) h = ILI9341_HEIGHT - y;
 
-	DC_H();
-//	HAL_SPI_Transmit(&hspi1, (uint8_t*)pData, Size * 2, HAL_MAX_DELAY);
-	spiDmaTransferComplete = 0;
-	HAL_SPI_Transmit_DMA(&hspi2, pData, Size*2 );
-	//HAL_SPI_Transmit_DMA(&hspi1, (uint8_t*)pData, Size );
-	while(spiDmaTransferComplete == 0);
-}
-/*
-void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-	spiDmaTransferComplete = 1;
-}
-*/
+    ILI9341_Select();
+    ILI9341_SetAddressWindow(x, y, x+w-1, y+h-1);
 
-static void LCD_direction(LCD_Horizontal_t direction)
-{
-	switch (direction) {
-	case ROTATE_0:
-		LCD_WR_REG(0x36);
-		LCD_WR_DATA(0x48);
-		break;
-	case ROTATE_90:
-		LCD_WR_REG(0x36);
-		LCD_WR_DATA(0x28);
-		break;
-	case ROTATE_180:
-		LCD_WR_REG(0x36);
-		LCD_WR_DATA(0x88);
-		break;
-	case ROTATE_270:
-		LCD_WR_REG(0x36);
-		LCD_WR_DATA(0xE8);
-		break;
-	}
+    uint8_t data[] = { color >> 8, color & 0xFF };
+    HAL_GPIO_WritePin(ILI9341_DC_GPIO_Port, ILI9341_DC_Pin, GPIO_PIN_SET);
+    for(y = h; y > 0; y--) {
+        for(x = w; x > 0; x--) {
+            HAL_SPI_Transmit(&ILI9341_SPI_PORT, data, sizeof(data), HAL_MAX_DELAY);
+        }
+    }
+
+    ILI9341_Unselect();
 }
 
-static void RESET_L(void)
-{
-	HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_RESET);
+void ILI9341_FillScreen(uint16_t color) {
+    ILI9341_FillRectangle(0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, color);
 }
 
-static void RESET_H(void)
-{
-	HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
+void ILI9341_DrawImage(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint16_t* data) {
+    if((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT)) return;
+    if((x + w - 1) >= ILI9341_WIDTH) return;
+    if((y + h - 1) >= ILI9341_HEIGHT) return;
+
+    ILI9341_Select();
+    ILI9341_SetAddressWindow(x, y, x+w-1, y+h-1);
+    ILI9341_WriteData((uint8_t*)data, sizeof(uint16_t)*w*h);
+    ILI9341_Unselect();
 }
 
-static void CS_L(void)
-{
-	HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-}
-
-static void DC_L(void)
-{
-	HAL_GPIO_WritePin(DC_GPIO_Port, DC_Pin, GPIO_PIN_RESET);
-}
-
-static void DC_H(void)
-{
-	HAL_GPIO_WritePin(DC_GPIO_Port, DC_Pin, GPIO_PIN_SET);
-}
-
-static void LED_H(void)
-{
-	//HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+void ILI9341_InvertColors(bool invert) {
+    ILI9341_Select();
+    ILI9341_WriteCommand(invert ? 0x21 /* INVON */ : 0x20 /* INVOFF */);
+    ILI9341_Unselect();
 }
 

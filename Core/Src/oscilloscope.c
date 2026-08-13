@@ -1,6 +1,7 @@
 #include "oscilloscope.h"
-#include "display.h"
+#include "ili9341.h"
 #include "menu.h"
+#include <stdio.h>
 
 extern ADC_HandleTypeDef hadc1;
 
@@ -18,6 +19,10 @@ static ScaleControls scale_controls_mode = TIME;
 static int32_t trigger_level = 2048;
 int32_t zero_offset = 2048;
 
+const char* timebase_strings[6] = {"1ms/d", "2ms/d", "5ms/d", "10ms/d", "20ms/d", "50ms/d"};
+const char* volts_strings[4] = {"1V/div", "2V/div", "5V/div", "10V/d"};
+
+extern char last_mode[20];
 extern uint8_t spectrum_data_ready;
 
 extern TIM_HandleTypeDef htim2;
@@ -29,10 +34,13 @@ void OscilloscopeToggleMode(void);
 static void OscilloscopeTrigger(void);
 static void OscilloscopeSendData(void);
 void OscilloscopeCalibrateZero(void);
+void OscilloscopeDrawGrid(void);
+void OscilloscopeDrawHUD(void);
 void HAL_ADC_ConvHalfCpltCallback (ADC_HandleTypeDef * hadc1);
 void HAL_ADC_ConvCpltCallback (ADC_HandleTypeDef * hadc1);
 void OscilloscopeInit(ADC_HandleTypeDef *hadc1);
 void OscilloscopeUpdateEncoder(void);
+void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc);
 void AdcSetChannel(uint32_t channel);
 
 void OscilloscopeUpdate()
@@ -50,6 +58,7 @@ void OscilloscopeUpdate()
 	case OSC_PAUSED:
 		break;
 	}
+	OscilloscopeDrawHUD();
 }
 
 void HAL_ADC_ConvHalfCpltCallback (ADC_HandleTypeDef *hadc1)
@@ -125,16 +134,36 @@ static void OscilloscopeSendData()
 	    // (raw_value * 15) / 256
 		// 240 - (raw_value * 15) / 256 to flip Y coordinate
 		y = 240 - ((calculated_value * 15) >> 8);
-
+		//y = ((calculated_value * 15) >> 8); // !!!!
 		// Draw new frame
 		// DrawScreen(i, old_y[i], BLACK);
 		// DrawScreen (i, y, GREEN);
-		ScreenDrawPixel(i, old_y[i], BLACK);
-		ScreenDrawPixel(i, y, GREEN);
+		if (i % 32 == 0 || old_y[i] % 30 == 0)
+		{
+		    ILI9341_DrawPixel(i, old_y[i], ILI9341_GREY);
+		}
+		else
+		{
+		    ILI9341_DrawPixel(i, old_y[i], ILI9341_BLACK);
+		}
+		ILI9341_DrawPixel(i, y, ILI9341_GREEN);
 		old_y[i] = y;
 
 	}
 	current_state = OSC_WAIT_DATA;
+}
+
+void OscilloscopeDrawGrid(void)
+{
+	for (int i = 0 ; i < 320; i += 32)
+	{
+		ILI9341_FillRectangle(i, 0, 1, 240, ILI9341_GREY);
+	}
+
+	for (int i = 0; i < 240; i += 30)
+	{
+		ILI9341_FillRectangle(0, i, 320, 1, ILI9341_GREY);
+	}
 }
 
 void OscilloscopeUpdateEncoder(void)
@@ -146,7 +175,7 @@ void OscilloscopeUpdateEncoder(void)
         return;
     }
 
-    int16_t diff = (int16_t)(current_tim_value - last_encoder_val);
+    int16_t diff = (int16_t)(last_encoder_val - current_tim_value);
     last_encoder_val = current_tim_value;
 
     switch (scale_controls_mode)
@@ -156,11 +185,13 @@ void OscilloscopeUpdateEncoder(void)
     	{
     		timebase_index++;
     		__HAL_TIM_SET_AUTORELOAD(&htim2, timebase_arr_values[timebase_index]);
+    		__HAL_TIM_SET_COUNTER(&htim2, 0);
     	}
     	else if (diff < 0 && timebase_index > 0)
     	{
     		timebase_index--;
     		__HAL_TIM_SET_AUTORELOAD(&htim2, timebase_arr_values[timebase_index]);
+    		__HAL_TIM_SET_COUNTER(&htim2, 0);
     	}
     	break;
     case VOLTS:
@@ -252,7 +283,6 @@ void OscilloscopeToggleMode()
 
 static void OscilloscopeTrigger()
 {
-	// Trigger was found
 	uint16_t start_index = (buffer_flag == 0) ? 1 : 2049;
 	uint16_t end_index = start_index + 2047 - 320;
 
@@ -266,7 +296,6 @@ static void OscilloscopeTrigger()
 		}
 	}
 
-	// Trigger was not found
 	if (current_state == OSC_FIND_TRIGGER)
 	{
 		trigger_index = (buffer_flag == 0) ? 0 : 2048;
@@ -294,4 +323,42 @@ void AdcSetChannel(uint32_t channel)
 	}
 
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buffer, 4096);
+}
+
+void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
+{
+	if (hadc->Instance == ADC1)
+		{
+			HAL_ADC_Stop_DMA(hadc);
+			HAL_ADC_Start_DMA(hadc, (uint32_t*)adc_buffer, 4096);
+		}
+}
+
+void OscilloscopeDrawHUD(void)
+{
+	char str_buff[32];
+	uint16_t color;
+
+	color = (scale_controls_mode == TIME) ? ILI9341_YELLOW : ILI9341_WHITE;
+	sprintf(str_buff, "T:%s  ", timebase_strings[timebase_index]);
+	ILI9341_WriteString(5, 5, str_buff, Font_7x10, color, ILI9341_BLACK);
+
+	color = (scale_controls_mode == VOLTS) ? ILI9341_YELLOW : ILI9341_WHITE;
+	sprintf(str_buff, "V:%s  ", volts_strings[volts_index]);
+	ILI9341_WriteString(100, 5, str_buff, Font_7x10, color, ILI9341_BLACK);
+
+	color = (scale_controls_mode == TRIGGER) ? ILI9341_YELLOW : ILI9341_WHITE;
+	sprintf(str_buff, "Trg:%d   ", (int)trigger_level);
+	ILI9341_WriteString(200, 5, str_buff, Font_7x10, color, ILI9341_BLACK);
+
+	ILI9341_WriteString(200, 230, last_mode, Font_7x10, ILI9341_GREEN, ILI9341_BLACK);
+
+	if (current_state == OSC_PAUSED)
+	{
+		ILI9341_WriteString(290, 5, "STOP", Font_7x10, ILI9341_RED, ILI9341_BLACK);
+	}
+	else
+	{
+		ILI9341_WriteString(290, 5, "RUN ", Font_7x10, ILI9341_GREEN, ILI9341_BLACK);
+	}
 }
